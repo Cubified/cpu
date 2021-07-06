@@ -3,7 +3,7 @@ all: assembler
 CC=gcc
 
 LIBS=
-CFLAGS=-Os -pipe -s
+CFLAGS=-Os -pipe -s -Wno-format
 DEBUGCFLAGS=-Og -pipe -g
 
 INPUT=assembler.c

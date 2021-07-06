@@ -17,7 +17,7 @@
 #  define debug(str, ...) do {} while(0)
 #endif
 
-int cpu(struct program_t *prog, char *buf, int len){
+int cpu(struct program_t *prog, unsigned char *buf, int len){
   int i, ret;
   reg_t ip = prog->entry_point,
         lr = ip,
@@ -30,68 +30,141 @@ int cpu(struct program_t *prog, char *buf, int len){
   for(;;){
     switch(buf[ip]){
       case MOV_REG_REG:
-        debug("MOV r%u r%u\n", buf[ip+1], buf[ip+2]);
+        debug("mov r%u, r%u\n", buf[ip+1], buf[ip+2]);
         regs[buf[ip+1]] = regs[buf[ip+2]];
         ip += 3;
         break;
       case MOV_REG_VAL:
-        debug("MOV r%u 0x%02hhx\n", buf[ip+1], buf[ip+2]);
+        debug("mov r%u, 0x%02hhx\n", buf[ip+1], buf[ip+2]);
         regs[buf[ip+1]] = buf[ip+2];
         ip += 3;
         break;
       case ADD_REG_REG:
-        debug("ADD r%u r%u\n", buf[ip+1], buf[ip+2]);
+        debug("add r%u, r%u\n", buf[ip+1], buf[ip+2]);
         regs[buf[ip+1]] += regs[buf[ip+2]];
         ip += 3;
         break;
       case ADD_REG_VAL:
-        debug("ADD r%u 0x%02hhx\n", buf[ip+1], buf[ip+2]);
+        debug("add r%u, 0x%02hhx\n", buf[ip+1], buf[ip+2]);
         regs[buf[ip+1]] += buf[ip+2];
         ip += 3;
         break;
+      case SUB_REG_REG:
+        debug("sub r%u, r%u\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] -= regs[buf[ip+2]];
+        ip += 3;
+        break;
+      case SUB_REG_VAL:
+        debug("sub r%u, %u\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] -= buf[ip+2];
+        ip += 3;
+        break;
+      case MUL_REG_REG:
+        debug("mul r%u, r%u\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] *= regs[buf[ip+2]];
+        ip += 3;
+        break;
+      case MUL_REG_VAL:
+        debug("mul r%u, 0x%02hhx\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] *= buf[ip+2];
+        ip += 3;
+        break;
+      case DIV_REG_REG:
+        debug("div r%u, r%u\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] /= regs[buf[ip+2]];
+        ip += 3;
+        break;
+      case DIV_REG_VAL:
+        debug("div r%u, %u\n", buf[ip+1], buf[ip+2]);
+        regs[buf[ip+1]] /= buf[ip+2];
+        ip += 3;
+        break;
       case JMP_REG:
-        debug("JMP r%u\n", buf[ip+1]);
+        debug("jmp r%u\n", buf[ip+1]);
         lr = ip+2;
         ip = regs[buf[ip+1]];
         break;
       case JMP_VAL:
-        debug("JMP 0x%02hhx\n", buf[ip+1]);
+        debug("jmp 0x%02hhx\n", buf[ip+1]);
         lr = ip+2;
         ip = buf[ip+1];
         break;
       case CMP_REG_REG:
-        debug("CMP r%u r%u\n", buf[ip+1], buf[ip+2]);
+        debug("cmp r%u, r%u\n", buf[ip+1], buf[ip+2]);
         if(regs[buf[ip+1]] == regs[buf[ip+2]]) fr = FLAG_EQUAL;
-        else fr = FLAG_NONE;
+        else if(regs[buf[ip+1]] > regs[buf[ip+2]]) fr = FLAG_GREATER;
+        else if(regs[buf[ip+1]] < regs[buf[ip+2]]) fr = FLAG_LESS;
         ip += 3;
         break;
       case CMP_REG_VAL:
-        debug("CMP r%u 0x%02hhx\n", buf[ip+1], buf[ip+2]);
+        debug("cmp r%u, 0x%02hhx\n", buf[ip+1], buf[ip+2]);
         if(regs[buf[ip+1]] == buf[ip+2]) fr = FLAG_EQUAL;
-        else fr = FLAG_NONE;
+        else if(regs[buf[ip+1]] > buf[ip+2]) fr = FLAG_GREATER;
+        else if(regs[buf[ip+1]] < buf[ip+2]) fr = FLAG_LESS;
         ip += 3;
         break;
       case JE_REG:
-        debug("JE r%u\n", buf[ip+1]);
-        ip += 2;
+        debug("je r%u\n", buf[ip+1]);
         if(fr == FLAG_EQUAL){
-          lr = ip;
+          lr = ip+2;
           ip = regs[buf[ip+1]];
-        }
+        } else ip += 2;
         break;
       case JE_VAL:
-        debug("JE 0x%02hhx\n", buf[ip+1]);
-        ip += 2;
+        debug("je 0x%02hhx\n", buf[ip+1]);
         if(fr == FLAG_EQUAL){
+          lr = ip+2;
           ip = buf[ip+1];
-        }
+        } else ip += 2;
+        break;
+      case JNE_REG:
+        debug("jne r%u\n", buf[ip+1]);
+        if(fr != FLAG_EQUAL){
+          lr = ip+2;
+          ip = regs[buf[ip+1]];
+        } else ip += 2;
+        break;
+      case JNE_VAL:
+        debug("jne 0x%02hhx\n", buf[ip+1]);
+        if(fr != FLAG_EQUAL){
+          lr = ip+2;
+          ip = buf[ip+1];
+        } else ip += 2;
+        break;
+      case JGT_REG:
+        debug("jgt r%u\n", buf[ip+1]);
+        if(fr == FLAG_GREATER){
+          lr = ip+2;
+          ip = regs[buf[ip+1]];
+        } else ip += 2;
+        break;
+      case JGT_VAL:
+        debug("jgt 0x%02hhx\n", buf[ip+1]);
+        if(fr == FLAG_GREATER){
+          lr = ip+2;
+          ip = buf[ip+1];
+        } else ip += 2;
+        break;
+      case JLT_REG:
+        debug("jlt r%u\n", buf[ip+1]);
+        if(fr == FLAG_LESS){
+          lr = ip+2;
+          ip = regs[buf[ip+1]];
+        } else ip += 2;
+        break;
+      case JLT_VAL:
+        debug("jlt 0x%02hhx\n", buf[ip+1]);
+        if(fr == FLAG_LESS){
+          lr = ip+2;
+          ip = buf[ip+1];
+        } else ip += 2;
         break;
       case RET:
-        debug("RET\n", 0);
+        debug("ret\n", 0);
         ip = lr;
         break;
       case END:
-        debug("END\n", 0);
+        debug("end\n", 0);
         ret = 0;
         goto done;
       default:
@@ -112,7 +185,7 @@ done:;
 
 int main(int argc, char **argv){
   FILE *fp;
-  char *buf;
+  unsigned char *buf;
   int   len;
   struct program_t *prog;
 
@@ -130,7 +203,7 @@ int main(int argc, char **argv){
 
   prog = (struct program_t*)buf;
 
-  debug("Executed with return value %u.\n", cpu(prog, buf, len));
+  printf("Executed with return value %u.\n", cpu(prog, buf, len));
 
   free(buf);
 

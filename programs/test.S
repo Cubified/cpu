@@ -1,5 +1,13 @@
-mov r1, 0x0f
-mov r2, r1
-add r2, 0x01
-cmp r2, r1
-end
+;
+; test.S: a simple test program
+;
+
+@start:
+  mov r1, 0x0f
+@loop:
+  sub r1, 1
+  cmp r1, 0x00
+  je @done
+  jmp @loop
+@done:
+  end
