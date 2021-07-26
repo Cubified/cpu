@@ -1,13 +1,11 @@
 ;
-; test.S: a simple test program
+; test.S: an extremely simple test program
 ;
 
 @start:
-  mov r1, 0x0f
+  mov r0, 16
 @loop:
-  sub r1, 1
-  cmp r1, 0x00
-  je @done
-  jmp @loop
-@done:
+  sub r0, 1
+  cmp r0, 0
+  jne @loop
   end

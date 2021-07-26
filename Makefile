@@ -3,7 +3,7 @@ all: cpu
 CC=gcc
 
 LIBS=
-CFLAGS=-Os -pipe -s
+CFLAGS=-Os -pipe -s -Wno-format-extra-args
 DEBUGCFLAGS=-Og -pipe -g
 
 INPUT=cpu.c

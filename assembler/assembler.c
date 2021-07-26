@@ -11,23 +11,23 @@
 #include "../opcodes.h"
 
 struct label_t {
-  char *name;
-  char pos;
+  char name[64];
   int len;
+  addr_t pos;
 };
 
 int main(int argc, char **argv){
   FILE *fp, *fout;
   char buf[512],
-       inst[16],
-       arg1_s[16],
-       arg2_s[16],
+       inst[64],
+       arg1_s[64],
+       arg2_s[64],
        outname[32],
-       ip = sizeof(struct program_t),
        *tmp;
-  int i, n,
+  int i, n, t,
       lind = 0,
       line = 0,
+      ip = sizeof(struct program_t),
       arg1,
       arg2,
       arg1_t,
@@ -48,16 +48,21 @@ int main(int argc, char **argv){
 
   /* First pass: Find label definitions */
   fp = fopen(argv[1], "r");
+  if(fp == NULL){
+    printf("Error: Unable to open file \"%s\" for reading.\n", argv[1]);
+    return 2;
+  }
   while(fgets(buf, sizeof(buf), fp) != NULL){
     if((tmp=strchr(buf, ';')) != NULL){
       tmp[0] = '\0';
     }
-    n = sscanf(buf, "%s %s %s", &inst, &arg1_s, &arg2_s);
+    n = sscanf(buf, "%s %s %s", inst, arg1_s, arg2_s);
     if(n <= 0) continue;
 
+    if(n == 2 && arg1_s[0] != 'r') n = 3;
+
     if(inst[0] == '@'){
-      labels[lind].name = strdup(buf); /* TODO: This leaks memory */
-      labels[lind].len = strlen(buf)-2;
+      strncpy(labels[lind].name, buf, (labels[lind].len=strlen(buf)-2));
       labels[lind].pos = ip;
       labels[lind].name[labels[lind].len] = '\0';
       lind++;
@@ -77,13 +82,14 @@ int main(int argc, char **argv){
       tmp[0] = '\0';
     }
 
-    n = sscanf(buf, "%s %s %s", &inst, &arg1_s, &arg2_s);
-   
+    n = sscanf(buf, "%s %s %s", inst, arg1_s, arg2_s);
+
     if(inst[0] == '@' || n <= 0) continue;
 
     if(arg1_s[0] == '@'){
-      for(i=0;i<LENGTH(labels);i++){
-        if(strncmp(labels[i].name, arg1_s, labels[i].len) == 0){
+      for(i=0;i<lind;i++){
+        t = strlen(arg1_s);
+        if(strncmp(labels[i].name, arg1_s, (labels[i].len > t ? labels[i].len : t)) == 0){
           arg1_t = VAL;
           arg1 = labels[i].pos;
           goto write;
@@ -95,11 +101,34 @@ int main(int argc, char **argv){
       exit(1);
     }
 
-    arg1_t = (n == 1 ? NONE : (arg1_s[0] == 'r' ? REG : VAL));
-    arg2_t = (n == 1 || n == 2 ? NONE : (arg2_s[0] == 'r' ? REG : VAL));
+    if(n == 1) arg1_t = NONE;
+    else switch(arg1_s[0]){
+      case 'r':
+        arg1_t = REG;
+        break;
+      case '#':
+        arg1_t = MEM;
+        break;
+      default:
+        arg1_t = VAL;
+        break;
+    }
 
-    sscanf(arg1_s, (arg1_t == REG ? "r%i" : "%i"), &arg1);
-    sscanf(arg2_s, (arg2_t == REG ? "r%i" : "%i"), &arg2);
+    if(n == 1 || n == 2) arg2_t = NONE;
+    else switch(arg2_s[0]){
+      case 'r':
+        arg2_t = REG;
+        break;
+      case '#':
+        arg2_t = MEM;
+        break;
+      default:
+        arg2_t = VAL;
+        break;
+    }
+
+    sscanf(arg1_s, (arg1_t == REG ? "r%i" : (arg1_t == MEM ? "#%i" : "%i")), &arg1);
+    sscanf(arg2_s, (arg2_t == REG ? "r%i" : (arg2_t == MEM ? "#%i" : "%i")), &arg2);
 
 write:;
     for(i=0;i<LENGTH(instructions);i++){
@@ -107,7 +136,10 @@ write:;
          instructions[i].arg2 == arg2_t &&
          strcasecmp(instructions[i].inst, inst) == 0){
         fputc(instructions[i].opcode, fout);
-        if(arg1_t != NONE) fputc(arg1, fout);
+        if(arg1_t != NONE){
+          if(arg2_t == NONE) fputc(arg1 >> 8, fout);
+          fputc(arg1 & 0xff, fout);
+        }
         if(arg2_t != NONE) fputc(arg2, fout);
 
         if(instructions[i].opcode == END) found_end = 1;

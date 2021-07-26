@@ -9,6 +9,8 @@
 enum opcodes {
   MOV_REG_REG = 0x01,
   MOV_REG_VAL = 0x02,
+  MOV_MEM_REG = 0x03,
+  MOV_MEM_VAL = 0x04,
   ADD_REG_REG = 0x13,
   ADD_REG_VAL = 0x14,
   SUB_REG_REG = 0x15,
@@ -29,8 +31,12 @@ enum opcodes {
   JGT_VAL     = 0x4e,
   JLT_REG     = 0x4f,
   JLT_VAL     = 0x50,
+  CALL        = 0x5a,
   RET         = 0x5b,
-  END         = 0x60
+  END         = 0x60,
+  SLP         = 0x70,
+  PNT         = 0x80,
+  ISR         = 0x90
 };
 
 enum flags {
@@ -43,7 +49,8 @@ enum flags {
 enum args {
   NONE = 0,
   REG  = 1,
-  VAL  = 2
+  VAL  = 2,
+  MEM  = 3
 };
 
 struct instr_t {
@@ -53,9 +60,9 @@ struct instr_t {
   int arg2;
 };
 
-typedef uint8_t reg_t;
-typedef uint8_t addr_t;
-typedef uint8_t opcode_t;
+typedef uint8_t  reg_t;
+typedef uint16_t addr_t;
+typedef uint8_t  opcode_t;
 
 struct program_t {
   addr_t text_start;
@@ -70,6 +77,8 @@ struct program_t {
 struct instr_t instructions[] = {
   { MOV_REG_REG, "mov", REG, REG },
   { MOV_REG_VAL, "mov", REG, VAL },
+  { MOV_MEM_REG, "mov", MEM, REG },
+  { MOV_MEM_VAL, "mov", MEM, VAL },
   { ADD_REG_REG, "add", REG, REG },
   { ADD_REG_VAL, "add", REG, VAL },
   { SUB_REG_REG, "sub", REG, REG },
@@ -78,18 +87,22 @@ struct instr_t instructions[] = {
   { MUL_REG_VAL, "mul", REG, VAL },
   { DIV_REG_REG, "div", REG, REG },
   { DIV_REG_VAL, "div", REG, VAL },
-  { JMP_REG, "jmp", REG, NONE },
-  { JMP_VAL, "jmp", VAL, NONE },
+  { JMP_REG,     "jmp", REG, NONE },
+  { JMP_VAL,     "jmp", VAL, NONE },
   { CMP_REG_REG, "cmp", REG, REG },
   { CMP_REG_VAL, "cmp", REG, VAL },
-  { JE_REG, "je", REG, NONE },
-  { JE_VAL, "je", VAL, NONE },
-  { JNE_REG, "jne", REG, NONE },
-  { JNE_VAL, "jne", VAL, NONE },
-  { JGT_REG, "jgt", REG, NONE },
-  { JGT_VAL, "jgt", VAL, NONE },
-  { JLT_REG, "jlt", REG, NONE },
-  { JLT_VAL, "jlt", VAL, NONE },
-  { RET, "ret", NONE, NONE },
-  { END, "end", NONE, NONE }
+  { JE_REG,      "je",  REG, NONE },
+  { JE_VAL,      "je",  VAL, NONE },
+  { JNE_REG,     "jne", REG, NONE },
+  { JNE_VAL,     "jne", VAL, NONE },
+  { JGT_REG,     "jgt", REG, NONE },
+  { JGT_VAL,     "jgt", VAL, NONE },
+  { JLT_REG,     "jlt", REG, NONE },
+  { JLT_VAL,     "jlt", VAL, NONE },
+  { CALL,        "call", VAL, NONE },
+  { RET,         "ret", NONE, NONE },
+  { END,         "end", NONE, NONE },
+  { SLP,         "slp", VAL,  NONE },
+  { PNT,         "pnt", NONE, NONE },
+  { ISR,         "isr", VAL,  NONE }
 };
