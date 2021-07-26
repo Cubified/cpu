@@ -12,12 +12,15 @@
 
 #include "opcodes.h"
 
+#define LENGTH(x) (sizeof(x)/sizeof(x[0]))
+
 #define debug(str, ...) if(dbg) printf(str, __VA_ARGS__)
 
 #define pack_addr() dest=buf[ip+1];dest<<=8;dest|=buf[ip+2]
 
 struct termios tio, raw;
 struct winsize ws;
+int dbg;
 
 void paint(addr_t mem[256]){
   int x = (ws.ws_col / 2) - 16,
@@ -43,15 +46,17 @@ int input(){
 int cpu(struct program_t *prog, unsigned char *buf, int len, int dbg){
   int i, ret;
   reg_t fr = FLAG_NONE,
-        regs[16];
+        regs[16],
+        lr = 0;
   addr_t ip = prog->entry_point,
-         lr = ip,
+         stack[256],
          isr = 0,
          mem[256], inp[16],
          dest;
 
-  memset(regs, 0, sizeof(regs));
-  memset(mem,  0, sizeof(mem));
+  memset(stack, 0, sizeof(stack));
+  memset(regs,  0, sizeof(regs));
+  memset(mem,   0, sizeof(mem));
 
   debug("Starting execution at entry point 0x%04hx.\n\n", prog->entry_point);
 
@@ -60,7 +65,11 @@ int cpu(struct program_t *prog, unsigned char *buf, int len, int dbg){
     if(isr > 0 && input() && read(STDIN_FILENO, inp, sizeof(inp)) > 0){
       debug("Got key press: %c\n", inp[0]);
       regs[0] = inp[0];
-      lr = ip;
+      if(lr == LENGTH(stack)-1){
+        ret = 3;
+        goto done;
+      }
+      stack[lr++] = ip;
       ip = isr;
     }
 
@@ -203,12 +212,20 @@ int cpu(struct program_t *prog, unsigned char *buf, int len, int dbg){
       case CALL:
         pack_addr();
         debug("call 0x%04hx\n", dest);
-        lr = ip+3;
+        if(lr == LENGTH(stack)-1){
+          ret = 3;
+          goto done;
+        }
+        stack[lr++] = ip+3;
         ip = dest;
         break;
       case RET:
         debug("ret\n", 0);
-        ip = lr;
+        if(lr == 0){
+          ret = 2;
+          goto done;
+        }
+        ip = stack[--lr];
         break;
       case END:
         debug("end\n", 0);
@@ -247,27 +264,44 @@ done:;
   return ret;
 }
 
-void gfx(int on){
-  if(on){
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
-    tcgetattr(STDIN_FILENO, &tio);
-    raw = tio;
-    raw.c_lflag &= ~(ECHO | ICANON);
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-    printf("\x1b[?1049h\x1b[?25l\n");
-  } else tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
+void gfx(int on, int dbg){
+  if(!dbg){
+    if(on){
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+      tcgetattr(STDIN_FILENO, &tio);
+      raw = tio;
+      raw.c_lflag &= ~(ECHO | ICANON);
+      tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+      printf("\x1b[?1049h\x1b[?25l\n");
+    } else {
+      tcsetattr(STDIN_FILENO, TCSAFLUSH, &tio);
+      printf("\x1b[?1049l\x1b[?25h\x1b[0m\n");
+    }
+  }
+}
+
+void sig(int s){
+  gfx(0, dbg);
+  printf("\x1b[0m\x1b[?25hHalted prematurely by termination signal.\n");
+  exit(0);
 }
 
 int main(int argc, char **argv){
   FILE *fp;
   unsigned char *buf;
-  int   len, dbg = (argc > 2);
+  int len, ret;
   struct program_t *prog;
+
+  signal(SIGINT,  sig);
+  signal(SIGTERM, sig);
+  signal(SIGQUIT, sig);
 
   if(argc < 2){
     printf("Usage: cpu [program] [--debug]\n");
     return 1;
   }
+
+  dbg = argc > 2;
 
   fp = fopen(argv[1], "r");
   if(fp == NULL){
@@ -280,12 +314,29 @@ int main(int argc, char **argv){
   fread(buf, len, 1, fp);
   fclose(fp);
 
-  gfx(1);
+  gfx(1, dbg);
 
   prog = (struct program_t*)buf;
-  printf("%sExecuted with return value %u.\n", (dbg ? "" : "\x1b[?1049l\x1b[?25h"), cpu(prog, buf, len, dbg));
+  ret = cpu(prog, buf, len, dbg);
 
-  gfx(0);
+  gfx(0, dbg);
+
+  printf("Executed with return value %u (", ret);
+  switch(ret){
+    case 0:
+      printf("Success");
+      break;
+    case 1:
+      printf("Bad opcode");
+      break;
+    case 2:
+      printf("RET called on empty stack");
+      break;
+    case 3:
+      printf("Maximum call stack size exceeded");
+      break;
+  }
+  printf(").\n");
 
   free(buf);
 

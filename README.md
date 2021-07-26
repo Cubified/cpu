@@ -14,53 +14,42 @@ Additionally, 256-color graphics can be drawn using direct memory manipulation o
 
 To compile the simulator:
 
-```shell
-     $ make
-     $ ./cpu
-     Usage: cpu [program]
+```sh
+$ make
+$ ./cpu
+Usage: cpu [program]
 ```
 
 To compile the assembler:
 
-```shell
-     $ cd assembler
-     $ make
-     $ ./assembler
-     Usage: assembler [file.S]
+```sh
+$ cd assembler
+$ make
+$ ./assembler
+Usage: assembler [file.S]
 ```
 
 There are a few example programs in `programs/`, including a [clone of Atari Pong](https://github.com/Cubified/cpu/blob/main/programs/pong.S).  To assemble and run one in debug mode (w/ disassembly), execute:
 
-```shell
-     $ ./assembler/assembler programs/test.S
-     $ ./cpu programs/test.S.bin --debug
-     Starting execution at entry point 0x000a.
+```sh
+$ ./assembler/assembler programs/test.S
+$ ./cpu programs/test.S.bin --debug
+Starting execution at entry point 0x000a.
 
-     mov r0, 0x0f
-     sub r0, 1
-     cmp r0 (16), 0x00
-     jne 0x000d
-     ...
-     end
+mov r0, 0x0f
+sub r0, 1
+cmp r0 (16), 0x00
+jne 0x000d
+...
+end
 
-     Registers at end of execution:
-       r0 = 00
-       r1 = 00
-       r2 = 10
-       r3 = 00
-       r4 = 00
-       r5 = 00
-       r6 = 00
-       r7 = 00
-       r8 = 00
-       r9 = 00
-       r10 = 00
-       r11 = 00
-       r12 = 00
-       r13 = 00
-       r14 = 00
-       r15 = 00
-     Executed with return value 0.
+Registers at end of execution:
+  r0 = 00
+  r1 = 00
+  r2 = 10
+  ...
+  r15 = 00
+Executed with return value 0.
 ```
 
 ### Assembly Language
@@ -114,6 +103,10 @@ User input is processed using an interrupt service routine (ISR).  To set a labe
   ret
   
 ```
+
+### [Documentation](https://github.com/Cubified/cpu/blob/main/doc)
+
+Documentation covers each instruction, accessible memory, CPU layout, binary format, and the assembly language in greater detail.
 
 ### To-Do
 
