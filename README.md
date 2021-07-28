@@ -61,6 +61,9 @@ The assembly language understood by the assembler is a mix of x86- and 6502-insp
 ; Comments are denoted by semicolons
 ;
 
+#include otherfile.S ; The assembler has a simple preprocessor capable of including files and preventing double-includes
+#pragma once         ; This works the same way as C's "#pragma once"
+
 @start:        ; Labels are denoted by at signs (execution will always begin at the @start label, or 0x05 if not found)
   mov r1, 0x0f ; Instructions can be uppercase or lowercase, and registers are denoted as r1, r2, r3, etc. (up to r15)
 @loop:

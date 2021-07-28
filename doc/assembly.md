@@ -56,11 +56,17 @@ Under the hood of the simulator, this assembly translates into:
 2. Write 255 into `vram[regs[0]]`
 3. Loop over each pixel in `vram`, set the pixel position using `"\x1b[{y};{x}H"` and pixel color using `"\x1b[{color}m"`, then printf the string to the terminal
 
+### Preprocessor
+
+The assembler currently implements a simple C-like preprocessor, capable of including files and preventing double-includes.  Currently, the only supported directives are:
+
+- `#include {file}`:  Include file `{file}` (no quotes), resolved relative to the current file
+- `#pragma once`:  Ensure file is only included once (basic include guard)
+
 ### What features are not (yet) included
 
 In no particular order:
 
 - Sections (e.g. data, text, bss, etc.) -- the binary format makes room for this, but neither the assembler nor the simulator make meaningful use of it
 - Constants
-- Includes
 - Memory accesses (including relative access) -- also, non-VRAM memory in general
